@@ -1,5 +1,6 @@
 import pandas as pd
 import logging
+import pickle
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
@@ -76,7 +77,7 @@ df_history = df_history.set_index('Edit Date').sort_index(ascending=False) # Sor
 logging.info('History DataFrame: Corrected')
 
 
-import pickle
+
 
 with open('data/Pred_Cifra_csv_in_df.pkl', 'wb') as f:
     pickle.dump([df_ops, df_history, df_op_lines], f)
