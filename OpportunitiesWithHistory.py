@@ -13,9 +13,9 @@ class OpportunitiesWithHistory (DataFrameDict):
     df_changes_history.
     """
 
-    def __init__(self, df, date, df_changes_history):
+    def __init__(self, df_changes_history, date=None, df=None, col_date_name='date_ts'):
 
-        DataFrameDict.__init__(self, df, date)
+        DataFrameDict.__init__(self, date, df)
 
         self._history = df_changes_history
         self._update_df_min_max_dates()
@@ -26,6 +26,17 @@ class OpportunitiesWithHistory (DataFrameDict):
     def history(self):
         return self._history
 
+    @history.setter
+    def history(self, df_changes_history):
+        self._history = df_changes_history
+        self._update_history_min_max_time()
+
+
+    def add_df_dict(self, df_dict):
+        for date, df in df_dict.items():
+            self[date] = df
+        self._update_df_min_max_dates()
+
 
     def _update_history_min_max_time(self):
         self._history_min_date = self._history.index.min()
@@ -33,8 +44,9 @@ class OpportunitiesWithHistory (DataFrameDict):
 
 
     def _update_df_min_max_dates(self):
-        self._df_min_date = self._df_all_dates['Close Date'].min() #TODO: Revisar si es correcte
-        self._df_max_date = self._list_all_dates[-1]
+        # TODO: Review if correct.
+        self._df_min_date = self._df_all_dates['Close Date'].min()
+        self._df_max_date = self.last_date
 
 
     def _get_df_in_date(self, date):
@@ -43,14 +55,14 @@ class OpportunitiesWithHistory (DataFrameDict):
         try:
             df_date = DataFrameDict._get_df_in_date(self, date)
 
-        except ValueError:
+        except KeyError:
             if self._is_date_in_history_range(date) and self._is_date_in_df_range(date):
                 logging.debug('New df is calculated in date:', date)
                 df_date = self._calculate_df_in_past_date(date)
                 self[date] = df_date
 
             else:
-                raise ValueError('Date requested out of range:', date)
+                raise KeyError('Date requested out of range:', date)
 
         return df_date
 

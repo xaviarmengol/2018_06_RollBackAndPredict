@@ -11,8 +11,8 @@ from DataFrameDict import DataFrameDict
 with open('data/Pred_Cifra_csv_in_df.pkl', 'rb') as f:
     df_ops, df_history, df_op_lines = pickle.load(f)
 
-ops = DataFrameDict(df_ops, datetime(2018, 6, 28))
-ops2 = DataFrameDict(df_ops, datetime(2018, 6, 1))
+ops = DataFrameDict(datetime(2018, 6, 28), df_ops)
+ops2 = DataFrameDict(datetime(2018, 6, 1), df_ops)
 
 
 def num_differences_between_df(df1, df2):
@@ -28,13 +28,13 @@ def test_init_parameters():
 
 def test_init_wrong_parameters():
 
-    with pytest.raises(ValueError):
-        ops_test = DataFrameDict('str', 'str2')
+    with pytest.raises(TypeError):
+        ops_test = DataFrameDict('str2', 'str')
 
 
 def test_assign_later_wrong_parameters():
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         ops_test = DataFrameDict()
         ops_test._check_and_add_new_df('str2', 'str')
 
@@ -53,9 +53,9 @@ def test_df_initial_equals_get_df_in_date():
 
 def test_set_get():
 
-    ops_set = DataFrameDict(df_ops, datetime(2018, 6, 1))
-    ops_set[datetime(2018,1,1)] = df_ops
+    ops_set = DataFrameDict(datetime(2018, 6, 1), df_ops)
 
+    ops_set[datetime(2018, 1, 1)] = df_ops
     df_get = ops_set[datetime(2018,1,1)]
 
     assert num_differences_between_df(df_ops, df_get) == 0
@@ -70,8 +70,8 @@ def test_contains():
 
 
 def test_iterator():
-    for df in ops:
-        assert isinstance(df, pd.DataFrame)
+    for date in ops:
+        assert isinstance(date, datetime)
 
 
 def test_sum_df():
@@ -85,39 +85,39 @@ def test_sum_df():
 
 def test_not_sum_equal_df_dates():
 
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         opssum = ops2 + ops2
 
 
 def test_delete_index():
     global ops
 
-    ops += DataFrameDict(df_ops, datetime(2018, 1, 1))
+    ops += DataFrameDict(datetime(2018, 1, 1), df_ops)
     del ops[0]
 
-    len_parcial = 0
-    for df in ops:
-        len_parcial += len(df)
+    len_partial = 0
+    for date, df in ops.items():
+        len_partial += len(df)
 
     assert len(ops) == 2
-    assert len_parcial == len(ops.df_all_dates)
+    assert len_partial == len(ops.df_all_dates)
 
 
 def test_delete_date():
     global ops
 
-    ops += DataFrameDict(df_ops, datetime(2018, 1, 1))
+    ops += DataFrameDict(datetime(2018, 1, 1), df_ops)
     del ops[datetime(2018, 1, 1)]
 
-    len_parcial = 0
-    for df in ops:
-        len_parcial += len(df)
+    len_partial = 0
+    for date, df in ops.items():
+        len_partial += len(df)
 
     assert len(ops) == 2
-    assert len_parcial == len(ops.df_all_dates)
+    assert len_partial == len(ops.df_all_dates)
 
 
 def test_get_df_in_date_returns_exception():
 
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         df = ops[datetime(1000, 1, 1)]
