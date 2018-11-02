@@ -12,7 +12,13 @@ with open('data/Pred_Cifra_csv_in_df.pkl', 'rb') as f:
     df_ops, df_history, df_op_lines = pickle.load(f)
 
 ops = DataFrameDict(datetime(2018, 6, 28), df_ops)
+
 ops2 = DataFrameDict(datetime(2018, 6, 1), df_ops)
+
+ops4 = DataFrameDict(datetime(2017, 1, 1), df_ops)
+ops4[datetime(2017, 2, 1)] = df_ops
+ops4[datetime(2017, 3, 1)] = df_ops
+ops4[datetime(2017, 4, 1)] = df_ops
 
 
 def num_differences_between_df(df1, df2):
@@ -121,3 +127,14 @@ def test_get_df_in_date_returns_exception():
 
     with pytest.raises(KeyError):
         df = ops[datetime(1000, 1, 1)]
+
+
+def test_slice():
+
+    ops_slice = ops4[1:3]
+    assert(ops_slice.list_all_dates[0] == datetime(2017, 2, 1))
+    assert(ops_slice.list_all_dates[1] == datetime(2017, 3, 1))
+
+    ops_slice_b = ops4[-2:]
+    assert(ops_slice_b.list_all_dates[0] == datetime(2017, 3, 1))
+    assert(ops_slice_b.list_all_dates[1] == datetime(2017, 4, 1))

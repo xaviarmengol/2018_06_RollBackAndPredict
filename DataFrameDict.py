@@ -163,32 +163,9 @@ class DataFrameDict:
         """
 
         if isinstance(input_item, slice):
-
-            #len_self = len(self._list_all_dates)
-
-            ## First Way
-            # def to_pos(value, len_total):
-            #     if value < 0:
-            #         value_pos = value+len_total
-            #     else:
-            #         value_pos = value
-            #     return value_pos
-            #
-            # start = to_pos(input_item.start or 0, len_self)
-            # stop = to_pos(input_item.stop or len_self, len_self)
-            # step = to_pos(input_item.step or 1, len_self)
-
-            ## Second way: start, stop, step = input_item.indices(len_self)
-
             sliced_object = DataFrameDict()
 
-            # for slice_index in range(start, stop, step):
-            #     date_index = self._list_all_dates[slice_index]
-            #     df_index = self[date_index]
-            #     sliced_object[date_index] = df_index
-
-            for index_slice in self._list_all_dates[input_item]:
-                date_slice = self._list_all_dates[index_slice]
+            for date_slice in self._list_all_dates[input_item]:
                 sliced_object[date_slice] = self[date_slice]
 
             return sliced_object
@@ -220,25 +197,7 @@ class DataFrameDict:
 
 
     def __iter__(self):
-
         return iter(self._list_all_dates)
-
-
-    #     self._iteration = 0
-    #     return self
-    #
-    #
-    # def __next__(self):
-    #     """Iterator that return DataFrames (elements), not the date (key)"""
-    #
-    #     if self._iteration < len(self):
-    #         df = self[self._iteration]
-    #         return_value = df
-    #         self._iteration += 1
-    #         return return_value
-    #
-    #     else:
-    #         raise StopIteration
 
 
     def items(self):
@@ -268,5 +227,6 @@ class DataFrameDict:
 
     def __iadd__(self, other):
         return self + other
+
 
 
