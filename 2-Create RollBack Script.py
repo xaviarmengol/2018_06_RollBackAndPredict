@@ -11,7 +11,7 @@ with open('data/Pred_Cifra_csv_in_df.pkl', 'rb') as f:
 
 date_csv = datetime(2018, 6, 28)
 
-ops = OpportunitiesWithHistory(df_ops, date_csv, df_history)
+ops = OpportunitiesWithHistory(df_history, date_csv, df_ops)
 
 range_dates = pd.date_range(ops._df_min_date, ops._df_max_date, freq='QS')
 range_dates = list(range_dates[::-1])

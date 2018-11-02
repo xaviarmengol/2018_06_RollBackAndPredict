@@ -11,7 +11,7 @@ from OpportunitiesWithHistory import OpportunitiesWithHistory
 with open('data/Pred_Cifra_csv_in_df.pkl', 'rb') as f:
     df_ops, df_history, df_op_lines = pickle.load(f)
 
-ops = OpportunitiesWithHistory(df_ops, datetime(2018, 6, 28), df_history)
+ops = OpportunitiesWithHistory(df_changes_history=df_history, date=datetime(2018, 6, 28), df=df_ops)
 
 
 def num_differences_between_df(df1, df2):
@@ -41,27 +41,28 @@ def test_contains():
 
 def test_get_df_in_date():
 
-    df_test_max_date = ops._get_df_in_date(ops._df_max_date)
-    df_test_min_date = ops._get_df_in_date(ops._df_min_date)
+    df_test_max_date = ops[ops._df_max_date]
+    df_test_min_date = ops[ops._df_min_date]
 
     assert (df_test_max_date.loc['OP-110511-107687', 'Amount'] == 250000.0)
     assert (df_test_min_date.loc['OP-110511-107687', 'Amount'] == 150000.0)
 
 
 def test_iterator():
-    for df in ops:
-        assert isinstance(df, pd.DataFrame)
+    for date in ops:
+        assert isinstance(date, datetime)
+
 
 def test_delete_index():
     _ = ops[datetime(2018, 1, 1)]
     del ops[1]
 
-    len_parcial = 0
-    for df in ops:
-        len_parcial += len(df)
+    len_partial = 0
+    for date, df in ops.items():
+        len_partial += len(df)
 
     assert len(ops) == 2
-    assert len_parcial == len(ops._df_all_dates)
+    assert len_partial == len(ops._df_all_dates)
 
 
 def test_delete_date():
@@ -69,7 +70,7 @@ def test_delete_date():
     del ops[datetime(2018, 1, 1)]
 
     len_parcial = 0
-    for df in ops:
+    for date, df in ops.items():
         len_parcial += len(df)
 
     assert len(ops) == 2
@@ -78,5 +79,5 @@ def test_delete_date():
 
 def test_get_df_in_date_returns_exception():
 
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         ops._get_df_in_date(ops._df_max_date + timedelta(1))

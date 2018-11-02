@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from tqdm import trange, tqdm, tqdm_notebook, tqdm_pandas # barra avance
+#from tqdm import trange, tqdm, tqdm_notebook, tqdm_pandas # barra avance
 import pickle
 
 #C:\Anaconda3\MinGW\bin

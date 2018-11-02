@@ -12,7 +12,6 @@ class DataFrameDict:
     - Keys (dates) are sorted by date
     - Elements can be accessed by key (date) like a dictionary, or by integer index/slice as a list.
     - When an element (DataFrame) is accessed, it contains as columns, the union of columns of every element
-    - Iterator works over the DataFrame (value), not over the date (key)
 
     Examples:
         >> df_dict = DataFrameDict()
@@ -23,7 +22,7 @@ class DataFrameDict:
     """
 
 
-    def __init__(self, df=None, date=None, col_date_name='date_ts'):
+    def __init__(self, date=None, df=None, col_date_name='date_ts'):
         """ Initialize the dictionary with first DataFrame and date.
 
         Args:
@@ -55,11 +54,19 @@ class DataFrameDict:
         """List of all dates (keys), sorted chronologically"""
         return self._list_all_dates
 
+    @property
+    def first_date(self):
+        return self._list_all_dates[0]
+
+    @property
+    def last_date(self):
+        return self._list_all_dates[-1]
+
 
     def _check_and_add_new_df(self, date, df):
         """ Check if df and date are valid, and add a new DataFrame to the dictionary """
 
-        if self._parameters_have_right_type(df, date):
+        if self._parameters_have_right_type(date, df):
 
             self._verify_do_not_contains_col_date_name(df)
             self._verify_date_is_not_assigned(date)
@@ -69,7 +76,7 @@ class DataFrameDict:
             pass # In case of default values, do nothing
 
 
-    def _parameters_have_right_type(self, df, date):
+    def _parameters_have_right_type(self, date, df):
         """ Check if parameters have the right type or default value. Otherwise rise an error"""
 
         if isinstance(df, pd.DataFrame) and isinstance(date, datetime):
@@ -79,7 +86,7 @@ class DataFrameDict:
             parameters_ok = False
 
         else:
-            raise ValueError('Parameters types not expected:', type(df), type(date))
+            raise TypeError('Parameters types not expected:', type(df), type(date))
 
         return parameters_ok
 
@@ -91,12 +98,12 @@ class DataFrameDict:
 
     def _verify_date_is_not_assigned(self, date):
         if date in self._list_all_dates:
-            raise ValueError('DataFrame already assigned to date:', date)
+            raise KeyError('DataFrame already assigned to date:', date)
 
 
     def _verify_date_exists(self, date):
         if date not in self._list_all_dates:
-            raise ValueError('DataFrame in date requested not found:', date)
+            raise KeyError('DataFrame in date requested not found:', date)
 
 
     def _add_new_df(self, date, df):
@@ -148,29 +155,41 @@ class DataFrameDict:
 
 
     def __getitem__(self, input_item):
-        """obj[key]: Get element by key. Key can be a date, a integer or an slice"""
+        """obj[key]: Get element date, a integer or slice
+
+        In case of date d, returns the DataFrame corresponding to the date d.
+        In case of int i, returns the DataFrame number #i in chronological order (being 0 the first).
+        In case of slice, returns a NEW DataFrameDict object containing the sliced indexes
+        """
 
         if isinstance(input_item, slice):
 
-            def to_pos(value, len_total):
-                if value < 0:
-                    value_pos = value+len_total
-                else:
-                    value_pos = value
-                return value_pos
+            #len_self = len(self._list_all_dates)
 
-            len_self = len(self._list_all_dates)
+            ## First Way
+            # def to_pos(value, len_total):
+            #     if value < 0:
+            #         value_pos = value+len_total
+            #     else:
+            #         value_pos = value
+            #     return value_pos
+            #
+            # start = to_pos(input_item.start or 0, len_self)
+            # stop = to_pos(input_item.stop or len_self, len_self)
+            # step = to_pos(input_item.step or 1, len_self)
 
-            start = to_pos(input_item.start or 0, len_self)
-            stop = to_pos(input_item.stop or len_self, len_self)
-            step = to_pos(input_item.step or 1, len_self)
+            ## Second way: start, stop, step = input_item.indices(len_self)
 
             sliced_object = DataFrameDict()
 
-            for slice_index in range(start, stop, step):
-                date_index = self._list_all_dates[slice_index]
-                df_index = self[date_index]
-                sliced_object[date_index] = df_index
+            # for slice_index in range(start, stop, step):
+            #     date_index = self._list_all_dates[slice_index]
+            #     df_index = self[date_index]
+            #     sliced_object[date_index] = df_index
+
+            for index_slice in self._list_all_dates[input_item]:
+                date_slice = self._list_all_dates[index_slice]
+                sliced_object[date_slice] = self[date_slice]
 
             return sliced_object
 
@@ -181,7 +200,7 @@ class DataFrameDict:
             date = input_item
 
         else:
-            raise ValueError('Index has no valid type:', input_item, type(input_item))
+            raise TypeError('Index has no valid type:', input_item, type(input_item))
 
         return self._get_df_in_date(date)
 
@@ -201,21 +220,25 @@ class DataFrameDict:
 
 
     def __iter__(self):
-        self._iteration = 0
-        return self
+
+        return iter(self._list_all_dates)
 
 
-    def __next__(self):
-        """Iterator that return DataFrames (elements), not the date (key)"""
-
-        if self._iteration < len(self):
-            df = self[self._iteration]
-            return_value = df
-            self._iteration += 1
-            return return_value
-
-        else:
-            raise StopIteration
+    #     self._iteration = 0
+    #     return self
+    #
+    #
+    # def __next__(self):
+    #     """Iterator that return DataFrames (elements), not the date (key)"""
+    #
+    #     if self._iteration < len(self):
+    #         df = self[self._iteration]
+    #         return_value = df
+    #         self._iteration += 1
+    #         return return_value
+    #
+    #     else:
+    #         raise StopIteration
 
 
     def items(self):
