@@ -2,24 +2,17 @@ import pandas as pd
 import numpy as np
 #from tqdm import trange, tqdm, tqdm_notebook, tqdm_pandas # barra avance
 import pickle
-
 import xgboost as xgb
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import f1_score, precision_score, recall_score
-
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.model_selection import ParameterGrid
-from FeaturesLabelsGenerator import FeaturesLabelsGenerator
 
-def filter_ops(df):
-    mask = (df['Opportunity Category'] == 'Simple') & (df['ID'] >= 50000)
-    return df[mask]
+from S3_Create_Dataset_Script import filter_ops # Needed to unpickle
 
 with open('data/Complete_dataset_MS.pkl', 'rb') as f:
-    Xy, filter_ops = pickle.load(f)
-
-Xy._function_to_filter_df=filter_ops # TODO: TO REMOVE. PICKLE NEEDS IT?
+    Xy = pickle.load(f)
 
 best_param_cv = {'colsample_bytree': 0.4,
                  'eta': 0.1,
