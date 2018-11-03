@@ -10,6 +10,11 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.model_selection import ParameterGrid
+from FeaturesLabelsGenerator import FeaturesLabelsGenerator
+
+def filter_ops(df):
+    mask = (df['Opportunity Category'] == 'Simple') & (df['ID'] >= 50000)
+    return df[mask]
 
 with open('data/Complete_dataset_MS.pkl', 'rb') as f:
     Xy, filter_ops = pickle.load(f)

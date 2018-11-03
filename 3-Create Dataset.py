@@ -29,4 +29,4 @@ with open('data/Complete_dataset_MS.pkl', 'wb') as f:
     pickle.dump([Xy, filter_ops], f)
 
 logging.info('Saved with Pickle')
-#Xy.X.df_all_dates.to_csv('data/all_dates_df_features.csv', sep=';', decimal=',')
+Xy.X.df_all_dates.to_csv('data/all_dates_df_features.csv', sep=';', decimal=',')
