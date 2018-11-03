@@ -14,7 +14,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
 class FeaturesLabelsGenerator:
 
-    def __init__(self, ops_time_line: OpportunitiesWithHistory, df_op_lines: pd.DataFrame, timedelta_in_months: int, df_changes_history:pd.DataFrame):
+    def __init__(self, ops_time_line: OpportunitiesWithHistory,
+                 df_op_lines: pd.DataFrame,
+                 timedelta_in_months: int,
+                 df_changes_history: pd.DataFrame,
+                 function_to_filter_df=None):
 
         #TODO: Not in init. Should be in class
         self.STAGE_TO_LABEL = {'0 - Closed': 0,
@@ -26,13 +30,16 @@ class FeaturesLabelsGenerator:
                                '6 - Negotiate to Win': 1}
 
         self._df_op_lines = df_op_lines
-        self._ops = self._pre_filter_ops(deepcopy(ops_time_line))
-        self._ops_complete = deepcopy(ops_time_line)
+
         self._time_delta_in_months = timedelta_in_months
         self._history = df_changes_history.reset_index().set_index('Edit Date').sort_index()
+        self._function_to_filter_df = function_to_filter_df
 
         self._y = DataFrameDict()
         self._X = DataFrameDict()
+
+        self._ops = self._pre_filter_ops(deepcopy(ops_time_line)) # TODO: Is it necessary to copy?
+        self._ops_complete = ops_time_line # Not necessary to make copy
 
 
     @property
@@ -60,19 +67,28 @@ class FeaturesLabelsGenerator:
             df_filtered = self._filter_open_ops(df)
             df_filtered = self._add_bu(df_filtered)
             df_filtered = self._add_pline(df_filtered)
-            df_filtered = self._filter_to_restrict_ops(df_filtered)
+            df_filtered = self._apply_filter_to_restrict_ops(df_filtered)
 
             ops_filtered[date] = df_filtered
 
         return ops_filtered
 
 
-    def _filter_to_restrict_ops(self, df):
+    def _filter_open_ops(self, df):
 
-        mask = (df['Opportunity Category'] == 'Simple') &\
-               (df['ID'] >= 5000)
+        mask = (df['Phase/Sales Stage'].map(self.STAGE_TO_LABEL) == 1)
         return df[mask]
 
+
+    def _apply_filter_to_restrict_ops(self, df):
+        """Apply filter function that has been provided in instantiation. If does not exist, do not filter"""
+
+        pass
+        if self._function_to_filter_df is None:
+            logging.info('DataFrame NOT filtered')
+            return df
+        else:
+            return self._function_to_filter_df(df)
 
 
     def calculate_label(self):
@@ -86,7 +102,7 @@ class FeaturesLabelsGenerator:
 
             else:
                 self.y[date] = df_label_in_date
-                print(self.y)
+                logging.debug('New label calculated:', self.y)
 
 
     def _calculate_stage_in_future(self, date):
@@ -105,12 +121,6 @@ class FeaturesLabelsGenerator:
         #print("X, y ->", date, date_to_check_stage)
 
         return pd.DataFrame(stage_of_se_accounts)
-
-
-    def _filter_open_ops(self, df):
-
-        mask = (df['Phase/Sales Stage'].map(self.STAGE_TO_LABEL) == 1)
-        return df[mask]
 
 
     def calculate_features(self):
@@ -231,7 +241,7 @@ class FeaturesLabelsGenerator:
         df_features_date['op_cat']     = df_ops_date['Opportunity Category']
         df_features_date['cl1']        = df_ops_date['Classification Level 1']
         df_features_date['cl2']       = df_ops_date['Classification Level 2']
-        df_features_date['op_lead']   = df_ops_date['Opportunity Leader']
+        #df_features_date['op_lead']   = df_ops_date['Opportunity Leader']
 
         df_features_date = pd.get_dummies(df_features_date)
 

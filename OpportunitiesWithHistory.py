@@ -7,10 +7,11 @@ from DataFrameDict import DataFrameDict
 
 
 class OpportunitiesWithHistory (DataFrameDict):
-    """ Extends DataFrameDict. In case that the requested date doesn't exist, the DataFrame is calculated.
+    """ Extends DataFrameDict class. In case that the requested date doesn't exist, the DataFrame is calculated.
 
-    To calculate the new DataFrame, the class roll back the closest dataframe in the future to the requested date using
+    To calculate the new DataFrame, the class roll back the closest DataFrame in the future to the requested date using
     df_changes_history.
+    If new DataFrame can not be calculated, raises an error
     """
 
     def __init__(self, df_changes_history, date=None, df=None, col_date_name='date_ts'):
@@ -56,7 +57,7 @@ class OpportunitiesWithHistory (DataFrameDict):
                 self[date] = df_date
 
             else:
-                raise KeyError('Date requested out of range:', date)
+                raise KeyError('Date requested do not exist and can not be calculated:', date)
 
         return df_date
 
