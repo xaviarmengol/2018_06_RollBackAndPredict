@@ -3,13 +3,6 @@ import numpy as np
 #from tqdm import trange, tqdm, tqdm_notebook, tqdm_pandas # barra avance
 import pickle
 
-#C:\Anaconda3\MinGW\bin
-
-#import os
-#mingw_path = r'C:\Anaconda3\MinGW\x86_64-w64-mingw32\bin'
-#mingw_path2 = r'C:\Anaconda3\MinGW\bin'
-#os.environ['PATH'] = mingw_path + ';' + mingw_path2 + ';' + os.environ['PATH']
-
 import xgboost as xgb
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import f1_score, precision_score, recall_score
@@ -19,8 +12,9 @@ from sklearn.feature_extraction import DictVectorizer
 from sklearn.model_selection import ParameterGrid
 
 with open('data/Complete_dataset_MS.pkl', 'rb') as f:
-    Xy = pickle.load(f)
+    Xy, filter_ops = pickle.load(f)
 
+Xy._function_to_filter_df=filter_ops # TODO: TO REMOVE. PICKLE NEEDS IT?
 
 best_param_cv = {'colsample_bytree': 0.4,
                  'eta': 0.1,

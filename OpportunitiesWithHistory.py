@@ -5,7 +5,6 @@ import logging
 import bisect
 from DataFrameDict import DataFrameDict
 
-
 class OpportunitiesWithHistory (DataFrameDict):
     """ Extends DataFrameDict class. In case that the requested date doesn't exist, the DataFrame is calculated.
 

@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -7,9 +6,19 @@ import logging
 from OpportunitiesWithHistory import OpportunitiesWithHistory
 from DataFrameDict import DataFrameDict
 from copy import deepcopy
-
+import json
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
+
+
+with open('conf/stage_to_label.json') as handle:
+    STAGE_TO_LABEL = json.loads(handle.read())
+
+with open('conf/opp_columns_names.json') as handle:
+    op_col = json.loads(handle.read())
+
+with open('conf/hist_columns_names.json') as handle:
+    h_col = json.loads(handle.read())
 
 
 class FeaturesLabelsGenerator:
@@ -19,15 +28,6 @@ class FeaturesLabelsGenerator:
                  timedelta_in_months: int,
                  df_changes_history: pd.DataFrame,
                  function_to_filter_df=None):
-
-        #TODO: Not in init. Should be in class
-        self.STAGE_TO_LABEL = {'0 - Closed': 0,
-                               '7 - Deliver & Validate': 2,
-                               '2 - Identify Customer Strategic Initiatives': 1,
-                               '3 - Qualify Opportunity': 1,
-                               '4 - Influence and Develop': 1,
-                               '5 - Prepare & Bid': 1,
-                               '6 - Negotiate to Win': 1}
 
         self._df_op_lines = df_op_lines
 
@@ -76,7 +76,7 @@ class FeaturesLabelsGenerator:
 
     def _filter_open_ops(self, df):
 
-        mask = (df['Phase/Sales Stage'].map(self.STAGE_TO_LABEL) == 1)
+        mask = (df['Phase/Sales Stage'].map(STAGE_TO_LABEL) == 1)
         return df[mask]
 
 
@@ -115,10 +115,8 @@ class FeaturesLabelsGenerator:
         # Checked against future df with no filter, to avoid non found opportunities
         df_ops_date_to_check_stage = self._ops_complete[date_to_check_stage]
 
-        stage_of_se_accounts = df_ops_date_to_check_stage.loc[df_ops_date_se_account, 'Phase/Sales Stage']
-        stage_of_se_accounts = stage_of_se_accounts.map(self.STAGE_TO_LABEL)
-
-        #print("X, y ->", date, date_to_check_stage)
+        stage_of_se_accounts = df_ops_date_to_check_stage.loc[df_ops_date_se_account, op_col['PHASE']]
+        stage_of_se_accounts = stage_of_se_accounts.map(STAGE_TO_LABEL)
 
         return pd.DataFrame(stage_of_se_accounts)
 
@@ -159,14 +157,14 @@ class FeaturesLabelsGenerator:
 
     def _add_basic_info(self, df_features_date, df_ops_date, date):
 
-        df_features_date['amount'] = df_ops_date['Amount']
-        df_features_date['is_sol'] = df_ops_date['Is a Solution'].map(lambda x: int(x))
-        df_features_date['has_sol_center'] = df_ops_date['Solution Center'].notnull().map(lambda x: int(x))
-        df_features_date['age_at_close_date'] = (df_ops_date['Close Date'] - df_ops_date['Created Date']).dt.days
-        df_features_date['close_date_month_abs_1'] = np.sin(np.pi*df_ops_date['Close Date'].dt.month/6.0) # Month is made continuous
-        df_features_date['close_date_month_abs_2'] = np.cos(np.pi*df_ops_date['Close Date'].dt.month/6.0)
-        df_features_date['days_to_close'] = (df_ops_date['Close Date'] - date).dt.days
-        df_features_date['age'] = (date - df_ops_date['Created Date']).dt.days
+        df_features_date['amount'] = df_ops_date[op_col['AMOUNT']]
+        df_features_date['is_sol'] = df_ops_date[op_col['SOLUTION']].map(lambda x: int(x))
+        df_features_date['has_sol_center'] = df_ops_date[op_col['SOLUTION_CENTER']].notnull().map(lambda x: int(x))
+        df_features_date['age_at_close_date'] = (df_ops_date[op_col['CLOSE_DATE']] - df_ops_date[op_col['CREATED_DATE']]).dt.days
+        df_features_date['close_date_month_abs_1'] = np.sin(np.pi * df_ops_date[op_col['CLOSE_DATE']].dt.month / 6.0) # Month is made continuous
+        df_features_date['close_date_month_abs_2'] = np.cos(np.pi * df_ops_date[op_col['CLOSE_DATE']].dt.month / 6.0)
+        df_features_date['days_to_close'] = (df_ops_date[op_col['CLOSE_DATE']] - date).dt.days
+        df_features_date['age'] = (date - df_ops_date[op_col['CREATED_DATE']]).dt.days
 
         return df_features_date
 
@@ -184,7 +182,7 @@ class FeaturesLabelsGenerator:
             col_sufix = ''
 
         df_h = df_h.reset_index()
-        df_num_upd = df_h.pivot_table(values='Edit Date', index='SE Reference', columns='Field / Event', aggfunc='count', fill_value=0)
+        df_num_upd = df_h.pivot_table(values=h_col['EDIT_DATE'], index=h_col['SE_REF'], columns=h_col['FIELD'], aggfunc='count', fill_value=0)
         df_num_upd['total'] = df_num_upd.sum(axis=1).replace(0,1)
 
         df_num_upd_with_col_name = df_num_upd.rename(columns=lambda x: 'num_upd_' + x + col_sufix)
@@ -219,7 +217,7 @@ class FeaturesLabelsGenerator:
         df_h = df_h[(df_h.index < to_date)]
 
         df_h = df_h.reset_index()
-        df_last_upd = df_h.pivot_table(values='Edit Date', index='SE Reference', columns='Field / Event', aggfunc=np.max)
+        df_last_upd = df_h.pivot_table(values=h_col['EDIT_DATE'], index=h_col['SE_REF'], columns=h_col['FIELD'], aggfunc=np.max)
 
         # If there is no update, last update = created date
         df_last_upd = df_last_upd.apply(lambda col: col.combine_first(df_last_upd['Created.']), axis=0)
@@ -234,14 +232,14 @@ class FeaturesLabelsGenerator:
 
     def _add_categorical(self, df_features_date, df_ops_date):
 
-        df_features_date['owner_role'] = df_ops_date['Owner Role']
-        df_features_date['ms_acc']     = df_ops_date['Market Segment']
-        df_features_date['mss']       = df_ops_date['Market Sub-Segment']
-        df_features_date['phase']      = df_ops_date['Phase/Sales Stage']
-        df_features_date['op_cat']     = df_ops_date['Opportunity Category']
-        df_features_date['cl1']        = df_ops_date['Classification Level 1']
-        df_features_date['cl2']       = df_ops_date['Classification Level 2']
-        #df_features_date['op_lead']   = df_ops_date['Opportunity Leader']
+        df_features_date['owner_role'] = df_ops_date[op_col['OWNER_ROLE']]
+        df_features_date['ms_acc']     = df_ops_date[op_col['MS']]
+        df_features_date['mss']        = df_ops_date[op_col['MSS']]
+        df_features_date['phase']      = df_ops_date[op_col['PHASE']]
+        df_features_date['op_cat']     = df_ops_date[op_col['OP_CATEGORY']]
+        df_features_date['cl1']        = df_ops_date[op_col['CL1']]
+        df_features_date['cl2']        = df_ops_date[op_col['CL2']]
+        #df_features_date['op_lead']   = df_ops_date[col_name['OP_LEADER']
 
         df_features_date = pd.get_dummies(df_features_date)
 
@@ -251,12 +249,9 @@ class FeaturesLabelsGenerator:
     def _add_bu(self, df):
 
         df_op_lines = self._df_op_lines
-
         df_op_lines.BU = df_op_lines.BU.fillna('NO')
-
         df_BU = df_op_lines.pivot_table(values='Line Amount', index='SE Reference', columns='BU', aggfunc=np.sum,
                                         fill_value=0)
-
         df_return = df.merge(df_BU, how='left', left_index=True, right_index=True)
 
         return df_return
@@ -265,12 +260,9 @@ class FeaturesLabelsGenerator:
     def _add_pline(self, df):
 
         df_op_lines = self._df_op_lines
-
         df_op_lines.prod_line = df_op_lines.prod_line.fillna('NOACT')
-
         df_plines = df_op_lines.pivot_table(values='Line Amount', index='SE Reference', columns='prod_line', aggfunc=np.sum,
                                         fill_value=0)
-
         df_return = df.merge(df_plines, how='left', left_index=True, right_index=True)
 
         return df_return
