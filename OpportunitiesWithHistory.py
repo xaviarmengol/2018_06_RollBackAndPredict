@@ -32,12 +32,6 @@ class OpportunitiesWithHistory (DataFrameDict):
         self._update_history_min_max_time()
 
 
-    def add_df_dict(self, df_dict):
-        for date, df in df_dict.items():
-            self[date] = df
-        self._update_df_min_max_dates()
-
-
     def _update_history_min_max_time(self):
         self._history_min_date = self._history.index.min()
         self._history_max_date = self._history.index.max()
@@ -146,3 +140,17 @@ class OpportunitiesWithHistory (DataFrameDict):
     def _delete_date(self, date):
         DataFrameDict._delete_date(self, date)
         self._update_df_min_max_dates()
+
+
+    def __add__(self, other):
+        return_obj = DataFrameDict.__add__(self, other)
+        self._update_df_min_max_dates()
+
+        return return_obj
+
+    def __iadd__(self, other):
+        return_obj = DataFrameDict.__iadd__(self, other)
+        self._update_df_min_max_dates()
+
+        return return_obj
+

@@ -18,7 +18,7 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.model_selection import ParameterGrid
 
-with open('data/Complete_dataset.pkl', 'rb') as f:
+with open('data/Complete_dataset_MS.pkl', 'rb') as f:
     Xy = pickle.load(f)
 
 
@@ -58,8 +58,8 @@ len(param_list)
 param_list = list([best_param_cv]) # Comentar para Grid Search
 
 q_samples = len(Xy.X)
-q_min_train = 2
-q_steps = 2
+q_min_train = 6
+q_steps = 6
 q_range = q_samples - q_min_train - q_steps
 
 f1_cv_avg_best = 0
@@ -94,12 +94,12 @@ for param_i, param in enumerate(param_list):
     for i in range(q_range):
         end_train = q_min_train + 1 + i  # no included
         ini_train = 0
-        test = (end_train - 1) + q_steps  # 2 quarters, 6 meses para no incluir info del test en el train
+        test = (end_train - 1) + q_steps  # q meses para no incluir info del test en el train
 
         X_train, X_train_f, y_train = extract_partial_dataset(Xy, ini_train, end_train)
         X_test, X_test_f, y_test = extract_partial_dataset(Xy, test, test+1)
 
-        percent_value = pd.value_counts(y_train) / y_train.shape[0]
+        percent_value = pd.value_counts(y_train.iloc[:,0]) / y_train.shape[0]
 
         w_train = create_weighs_vector(y_train, percent_value, X_train)
         w_test = create_weighs_vector(y_test, percent_value, X_test)
@@ -109,7 +109,7 @@ for param_i, param in enumerate(param_list):
 
         watchlist = [(xg_train, 'train'), (xg_test, 'test')]
 
-        num_round = 300
+        num_round = 800
 
         bst = xgb.train(param_list[param_i], xg_train, num_round, watchlist, verbose_eval=False,
                         early_stopping_rounds=20)

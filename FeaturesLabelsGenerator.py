@@ -25,8 +25,9 @@ class FeaturesLabelsGenerator:
                                '5 - Prepare & Bid': 1,
                                '6 - Negotiate to Win': 1}
 
-        self._ops = self._filter_ops(deepcopy(ops_time_line))
         self._df_op_lines = df_op_lines
+        self._ops = self._pre_filter_ops(deepcopy(ops_time_line))
+        self._ops_complete = deepcopy(ops_time_line)
         self._time_delta_in_months = timedelta_in_months
         self._history = df_changes_history.reset_index().set_index('Edit Date').sort_index()
 
@@ -51,13 +52,12 @@ class FeaturesLabelsGenerator:
         return self._ops
 
 
-    def _filter_ops(self, ops):
+    def _pre_filter_ops(self, ops):
         ops_filtered = DataFrameDict()
 
         for date, df in ops.items():
 
             df_filtered = self._filter_open_ops(df)
-
             df_filtered = self._add_bu(df_filtered)
             df_filtered = self._add_pline(df_filtered)
             df_filtered = self._filter_to_restrict_ops(df_filtered)
@@ -65,12 +65,6 @@ class FeaturesLabelsGenerator:
             ops_filtered[date] = df_filtered
 
         return ops_filtered
-
-
-    def _filter_open_ops(self, df):
-
-        mask = (df['Phase/Sales Stage'].map(self.STAGE_TO_LABEL) == 1)
-        return df[mask]
 
 
     def _filter_to_restrict_ops(self, df):
@@ -83,26 +77,27 @@ class FeaturesLabelsGenerator:
 
     def calculate_label(self):
 
-        for date in self._ops.list_all_dates:
+        for date in self.ops.list_all_dates:
             try:
                 df_label_in_date = self._calculate_stage_in_future(date)
 
-            except ValueError:
+            except KeyError:
                 continue
 
             else:
-                self._y[date] = df_label_in_date
-                print(self._y)
+                self.y[date] = df_label_in_date
+                print(self.y)
 
 
     def _calculate_stage_in_future(self, date):
 
         date_to_check_stage = date + relativedelta(months=self._time_delta_in_months)
 
-        df_ops_date = self._ops[date]
+        df_ops_date = self.ops[date]
         df_ops_date_se_account = df_ops_date.index
 
-        df_ops_date_to_check_stage = self._ops[date_to_check_stage]
+        # Checked against future df with no filter, to avoid non found opportunities
+        df_ops_date_to_check_stage = self._ops_complete[date_to_check_stage]
 
         stage_of_se_accounts = df_ops_date_to_check_stage.loc[df_ops_date_se_account, 'Phase/Sales Stage']
         stage_of_se_accounts = stage_of_se_accounts.map(self.STAGE_TO_LABEL)
@@ -112,25 +107,33 @@ class FeaturesLabelsGenerator:
         return pd.DataFrame(stage_of_se_accounts)
 
 
+    def _filter_open_ops(self, df):
+
+        mask = (df['Phase/Sales Stage'].map(self.STAGE_TO_LABEL) == 1)
+        return df[mask]
+
+
     def calculate_features(self):
 
-        for date in self._y.list_all_dates:
+        for date in self.y.list_all_dates:
 
-            self._X[date] = self._calculate_features_date(date)
+            self.X[date] = self._calculate_features_date(date)
             logging.info('- Calculated df features in date: {}'.format(date))
 
 
     def _calculate_features_date(self, date):
 
-        df_ops_date = self._ops[date]
+        df_ops_date = self.ops[date]
         df_features_date = pd.DataFrame()
 
         df_features_date = self._add_basic_info(df_features_date, df_ops_date, date)
 
         df_features_date, df_num_upd = self._add_num_upd_until_date(df_features_date, date)
+        df_features_date, df_num_upd_w0 = self._add_num_upd_until_date(df_features_date, date, window_in_days=31)
         df_features_date, df_num_upd_w1 = self._add_num_upd_until_date(df_features_date, date, window_in_days=91)
         df_features_date, df_num_upd_w2 = self._add_num_upd_until_date(df_features_date, date, window_in_days=182)
 
+        df_features_date = self._add_num_update_ratio(df_features_date, df_num_upd_w0, df_num_upd, 'ratio_w0_vs_w_')
         df_features_date = self._add_num_update_ratio(df_features_date, df_num_upd_w1, df_num_upd, 'ratio_w1_vs_w_')
         df_features_date = self._add_num_update_ratio(df_features_date, df_num_upd_w2, df_num_upd, 'ratio_w2_vs_w_')
 
@@ -141,6 +144,7 @@ class FeaturesLabelsGenerator:
         df_features_date = self._add_categorical(df_features_date, df_ops_date)
 
         return df_features_date
+
 
 
     def _add_basic_info(self, df_features_date, df_ops_date, date):
@@ -222,12 +226,12 @@ class FeaturesLabelsGenerator:
 
         df_features_date['owner_role'] = df_ops_date['Owner Role']
         df_features_date['ms_acc']     = df_ops_date['Market Segment']
-        #df_features_date['mss']       = df_ops['Market Sub-Segment']
+        df_features_date['mss']       = df_ops_date['Market Sub-Segment']
         df_features_date['phase']      = df_ops_date['Phase/Sales Stage']
         df_features_date['op_cat']     = df_ops_date['Opportunity Category']
         df_features_date['cl1']        = df_ops_date['Classification Level 1']
-        #df_features_date['cl2']       = df_ops['Classification Level 2']
-        #df_features_date['op_lead']   = df_ops['Opportunity Leader']
+        df_features_date['cl2']       = df_ops_date['Classification Level 2']
+        df_features_date['op_lead']   = df_ops_date['Opportunity Leader']
 
         df_features_date = pd.get_dummies(df_features_date)
 
@@ -243,9 +247,9 @@ class FeaturesLabelsGenerator:
         df_BU = df_op_lines.pivot_table(values='Line Amount', index='SE Reference', columns='BU', aggfunc=np.sum,
                                         fill_value=0)
 
-        df = df.merge(df_BU, how='left', left_index=True, right_index=True)
+        df_return = df.merge(df_BU, how='left', left_index=True, right_index=True)
 
-        return df
+        return df_return
 
 
     def _add_pline(self, df):
@@ -257,6 +261,6 @@ class FeaturesLabelsGenerator:
         df_plines = df_op_lines.pivot_table(values='Line Amount', index='SE Reference', columns='prod_line', aggfunc=np.sum,
                                         fill_value=0)
 
-        df = df.merge(df_plines, how='left', left_index=True, right_index=True)
+        df_return = df.merge(df_plines, how='left', left_index=True, right_index=True)
 
-        return df
+        return df_return

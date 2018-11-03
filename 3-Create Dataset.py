@@ -5,7 +5,7 @@ from FeaturesLabelsGenerator import FeaturesLabelsGenerator
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
-with open('data/Calculated_Ops_with_Time_line.pkl', 'rb') as f:
+with open('data/Calculated_Ops_with_Time_line_MS.pkl', 'rb') as f:
     ops, range_dates = pickle.load(f)
 
 with open('data/Pred_Cifra_csv_in_df.pkl', 'rb') as f:
@@ -16,7 +16,7 @@ Xy = FeaturesLabelsGenerator(ops, df_op_lines, timedelta_in_months=6, df_changes
 Xy.calculate_label()
 Xy.calculate_features()
 
-with open('data/Complete_dataset.pkl', 'wb') as f:
+with open('data/Complete_dataset_MS.pkl', 'wb') as f:
     pickle.dump(Xy, f)
 
 logging.info('Saved with Pickle')

@@ -113,7 +113,7 @@ class DataFrameDict:
         df_aux[self._col_date_name] = date
 
         # Add the DataFrame df to the complete DataFrame, and create any new column that doesn't yet exist
-        self._df_all_dates = pd.concat([self._df_all_dates, df_aux])
+        self._df_all_dates = pd.concat([self._df_all_dates, df_aux], sort=False)
 
         # Insert the new date in the dates list, keeping the order
         bisect.insort(self._list_all_dates, date)
@@ -216,6 +216,7 @@ class DataFrameDict:
 
 
     def __add__(self, other):
+        """Adding creating a NEW object"""
 
         return_obj = copy.deepcopy(self)
 
@@ -226,7 +227,13 @@ class DataFrameDict:
 
 
     def __iadd__(self, other):
-        return self + other
+        """ Adding IN place """
+
+        for date_other, df_other in other.items():
+            self._check_and_add_new_df(date_other, df_other)
+
+        return self
+
 
 
 
