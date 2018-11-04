@@ -5,7 +5,7 @@ from dateutil.relativedelta import relativedelta
 import logging
 from OpportunitiesWithHistory import OpportunitiesWithHistory
 from DataFrameDict import DataFrameDict
-from copy import deepcopy
+from copy import copy, deepcopy
 import json
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
@@ -33,7 +33,7 @@ class FeaturesLabelsGenerator:
 
         self._time_delta_in_months = timedelta_in_months
         self._history = df_changes_history.reset_index().set_index('Edit Date').sort_index()
-        self._function_to_filter_df = function_to_filter_df
+        self._function_to_filter_df = copy(function_to_filter_df)
 
         self._y = DataFrameDict()
         self._X = DataFrameDict()
@@ -266,3 +266,6 @@ class FeaturesLabelsGenerator:
         df_return = df.merge(df_plines, how='left', left_index=True, right_index=True)
 
         return df_return
+
+    def __len__(self):
+        return len(self.X)
