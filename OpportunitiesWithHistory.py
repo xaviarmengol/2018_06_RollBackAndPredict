@@ -13,14 +13,11 @@ class OpportunitiesWithHistory (DataFrameDict):
     If new DataFrame can not be calculated, raises an error
     """
 
-    def __init__(self, df_changes_history, date=None, df=None, col_date_name='date_ts'):
+    def __init__(self, df_changes_history, date=None, df=None, col_date_name='date_ts_hist'):
 
-        DataFrameDict.__init__(self, date, df)
-
+        DataFrameDict.__init__(self, date, df, col_date_name)
         self._history = df_changes_history
-        self._update_df_min_max_dates()
         self._update_history_min_max_time()
-
 
     @property
     def history(self):
@@ -30,6 +27,13 @@ class OpportunitiesWithHistory (DataFrameDict):
     def history(self, df_changes_history):
         self._history = df_changes_history
         self._update_history_min_max_time()
+
+
+    def _add_new_df(self, date, df):
+        """Add a new df when all has been checked"""
+
+        DataFrameDict._add_new_df(self, date, df)
+        self._update_df_min_max_dates()
 
 
     def _update_history_min_max_time(self):

@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from OpportunitiesWithHistory import OpportunitiesWithHistory
 from FeaturesLabelsGenerator import FeaturesLabelsGenerator
 
-from S3_Create_Dataset_Script import filter_ops
+#from S3_Create_Dataset_Script import filter_ops
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
@@ -107,8 +107,8 @@ def xgboost_grid_search_cv(data_set, parameters_list):
 
 if __name__ == '__main__':
 
-    with open('data/Complete_dataset_MS.pkl', 'rb') as f:
-        Xy = pickle.load(f)
+    #with open('data/Complete_dataset_MS.pkl', 'rb') as f:
+    #    Xy = pickle.load(f)
 
     GRID_SEARCH = False
     MONTHS_PREDICTION = 6
@@ -143,20 +143,32 @@ if __name__ == '__main__':
                        'silent': [1],
                        'subsample': [0.7, 0.9]}
 
-    # with open('data/Pred_Cifra_csv_in_df.pkl', 'rb') as f:
-    #     df_ops, df_history, df_op_lines = pickle.load(f)
-    #
-    # date_csv = datetime(2018, 6, 28)
-    #
-    # ops = OpportunitiesWithHistory(df_history, date_csv, df_ops)
-    #
-    # def filter_ops(df):
-    #     mask = (df['Opportunity Category'] == 'Simple') & (df['ID'] >= 50000)
-    #     return df[mask]
-    #
-    # Xy = FeaturesLabelsGenerator(ops, df_op_lines, timedelta_in_months=MONTHS_PREDICTION,
-    #                              df_changes_history=df_history,
-    #                              function_to_filter_df=filter_ops)
+    with open('data/Pred_Cifra_csv_in_df.pkl', 'rb') as f:
+        df_ops, df_history, df_op_lines = pickle.load(f)
+
+    date_csv = datetime(2018, 6, 28)
+
+    df_op_lines.BU = df_op_lines.BU.fillna('NO')
+    df_BU = df_op_lines.pivot_table(values='Line Amount', index='SE Reference', columns='BU', aggfunc=np.sum, fill_value=0)
+    df_ops = df_ops.merge(df_BU, how='left', left_index=True, right_index=True)
+
+
+    df_op_lines.prod_line = df_op_lines.prod_line.fillna('NOACT')
+    df_plines = df_op_lines.pivot_table(values='Line Amount', index='SE Reference', columns='prod_line', aggfunc=np.sum, fill_value=0)
+    df_ops = df_ops.merge(df_plines, how='left', left_index=True, right_index=True)
+
+
+    ops = OpportunitiesWithHistory(df_history, date_csv, df_ops)
+
+    def filter_ops(df):
+        mask = (df['Opportunity Category'] == 'Simple') & (df['ID'] >= 50000)
+        return df[mask]
+
+    Xy = FeaturesLabelsGenerator(ops, df_op_lines, timedelta_in_months=MONTHS_PREDICTION,
+                                 df_changes_history=df_history,
+                                 function_to_filter_df=filter_ops)
+    Xy.calculate_label()
+    Xy.calculate_features()
 
     if GRID_SEARCH:
         param_list = list(ParameterGrid(parameters_grid))

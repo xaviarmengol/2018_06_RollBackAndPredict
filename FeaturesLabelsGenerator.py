@@ -27,19 +27,20 @@ class FeaturesLabelsGenerator:
                  df_op_lines: pd.DataFrame,
                  timedelta_in_months: int,
                  df_changes_history: pd.DataFrame,
-                 function_to_filter_df=None):
+                 function_to_filter_df=None,
+                 sampling_period_in_months=1):
 
         self._df_op_lines = df_op_lines
 
         self._time_delta_in_months = timedelta_in_months
         self._history = df_changes_history.reset_index().set_index('Edit Date').sort_index()
         self._function_to_filter_df = copy(function_to_filter_df)
+        self._sampling_period_in_months = sampling_period_in_months
 
         self._y = DataFrameDict()
         self._X = DataFrameDict()
 
-        self._ops = self._pre_filter_ops(deepcopy(ops_time_line)) # TODO: Is it necessary to copy?
-        self._ops_complete = ops_time_line # Not necessary to make copy
+        self._ops = ops_time_line
 
 
     @property
@@ -59,22 +60,21 @@ class FeaturesLabelsGenerator:
         return self._ops
 
 
-    def _pre_filter_ops(self, ops):
-        ops_filtered = DataFrameDict()
+    # REDEFINIR TODA LA FUNCION:
+    # - Dataset debe contener toda la información al inicio: Oportunidades + BU + PLINE
 
-        for date, df in ops.items():
+    def _filter_df(self, df):
 
-            df_filtered = self._filter_open_ops(df)
-            df_filtered = self._add_bu(df_filtered)
-            df_filtered = self._add_pline(df_filtered)
-            df_filtered = self._apply_filter_to_restrict_ops(df_filtered)
+        df_filtered = self._filter_open_ops(df)
+        #df_filtered = self._add_bu(df_filtered)
+        #df_filtered = self._add_pline(df_filtered)
+        df_filtered = self._apply_filter_to_restrict_ops(df_filtered)
 
-            ops_filtered[date] = df_filtered
-
-        return ops_filtered
+        return df_filtered
 
 
     def _filter_open_ops(self, df):
+        """ """
 
         mask = (df['Phase/Sales Stage'].map(STAGE_TO_LABEL) == 1)
         return df[mask]
@@ -83,7 +83,6 @@ class FeaturesLabelsGenerator:
     def _apply_filter_to_restrict_ops(self, df):
         """Apply filter function that has been provided in instantiation. If does not exist, do not filter"""
 
-        pass
         if self._function_to_filter_df is None:
             logging.info('DataFrame NOT filtered')
             return df
@@ -93,7 +92,13 @@ class FeaturesLabelsGenerator:
 
     def calculate_label(self):
 
-        for date in self.ops.list_all_dates:
+        # ARREGLAR!!!
+
+        freq_sampling = str(self._sampling_period_in_months) + 'MS'
+        range_dates = pd.date_range(self.ops._df_min_date, self.ops._df_max_date, freq=freq_sampling)
+        range_dates = list(range_dates[::-1])
+
+        for date in range_dates:
             try:
                 df_label_in_date = self._calculate_stage_in_future(date)
 
@@ -109,11 +114,11 @@ class FeaturesLabelsGenerator:
 
         date_to_check_stage = date + relativedelta(months=self._time_delta_in_months)
 
-        df_ops_date = self.ops[date]
+        df_ops_date = self._filter_df(self.ops[date])
         df_ops_date_se_account = df_ops_date.index
 
         # Checked against future df with no filter, to avoid non found opportunities
-        df_ops_date_to_check_stage = self._ops_complete[date_to_check_stage]
+        df_ops_date_to_check_stage = self.ops[date_to_check_stage]
 
         stage_of_se_accounts = df_ops_date_to_check_stage.loc[df_ops_date_se_account, op_col['PHASE']]
         stage_of_se_accounts = stage_of_se_accounts.map(STAGE_TO_LABEL)
@@ -131,7 +136,7 @@ class FeaturesLabelsGenerator:
 
     def _calculate_features_date(self, date):
 
-        df_ops_date = self.ops[date]
+        df_ops_date = self._filter_df(self.ops[date])
         df_features_date = pd.DataFrame()
 
         df_features_date = self._add_basic_info(df_features_date, df_ops_date, date)
