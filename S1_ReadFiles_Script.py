@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import logging
 import pickle
 
@@ -8,18 +9,33 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
 logging.info('DataFrames: Reading...')
 
-
 def read_csv_bfo_to_df(path):
     df = pd.read_csv(path, sep=',', decimal=',',  encoding="ISO-8859-1", dayfirst=True, low_memory=False)
     df = df.iloc[:-5, :]  # 5 last lines of bfo_csv are comments
     return df
 
-
+df_op_lines = read_csv_bfo_to_df('data/Listado_OPLINE_2015_Hoy_ES_no_loc.csv')
 df_ops = read_csv_bfo_to_df('data/Listado_Ops_2015_Hoy_ES_no_loc.csv')
 df_history = read_csv_bfo_to_df('data/History_Ops_ES_2015_Today_no_loc.csv')
-df_op_lines = read_csv_bfo_to_df('data/Listado_OPLINE_2015_Hoy_ES_no_loc.csv')
 
 logging.info('DataFrames: Read')
+
+
+# Adapt Opp Lines Dataframe
+
+logging.info('Opps Lines DataFrame: Correcting...')
+
+
+def get_first_chars_of_series(series, num_chars):
+    return series.apply(lambda x: x[:num_chars])
+
+
+df_op_lines['prod_line'] = get_first_chars_of_series(df_op_lines['Product Line'].fillna('NOACT'), num_chars=5)
+df_op_lines['BU'] = get_first_chars_of_series(df_op_lines['Product Line'].fillna('NO'), num_chars=2)
+
+
+logging.info('Opps Lines DataFrame: Corrected')
+
 
 # Adapt Opportunities Dataframe
 
@@ -34,21 +50,18 @@ df_ops['Created Date'] = convert_day_string_series_to_datetime(df_ops['Created D
 df_ops['Close Date'] = convert_day_string_series_to_datetime(df_ops['Close Date'])
 df_ops = df_ops.set_index('SE Reference').sort_index()
 
+# Adding the BU and PRODUCT LINE amount columns to every opportunity
+
+df_BU = df_op_lines.pivot_table(values='Line Amount', index='SE Reference', columns='BU', aggfunc=np.sum, fill_value=0)
+df_ops = df_ops.merge(df_BU, how='left', left_index=True, right_index=True)
+
+df_plines = df_op_lines.pivot_table(values='Line Amount', index='SE Reference', columns='prod_line', aggfunc=np.sum, fill_value=0)
+df_ops = df_ops.merge(df_plines, how='left', left_index=True, right_index=True)
+
+
+
 logging.info('Opps DataFrame: Corrected')
 
-# Adapt Opp Lines Dataframe
-
-logging.info('Opps Lines DataFrame: Correcting...')
-
-
-def get_first_chars_of_series(series, num_chars):
-    return series.apply(lambda x: x[:num_chars])
-
-
-df_op_lines['prod_line'] = get_first_chars_of_series(df_op_lines['Product Line'].fillna("NO"), num_chars=5)
-df_op_lines['BU'] = get_first_chars_of_series(df_op_lines['Product Line'].fillna("NO"), num_chars=2)
-
-logging.info('Opps Lines DataFrame: Corrected')
 
 # Adapt History Dataframe
 
@@ -75,7 +88,6 @@ df_history = df_history.set_index('Edit Date').sort_index(ascending=False) # Sor
 
 
 logging.info('History DataFrame: Corrected')
-
 
 
 

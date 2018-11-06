@@ -10,6 +10,7 @@ import json
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
+#TODO: Review if should be done here
 
 with open('conf/stage_to_label.json') as handle:
     STAGE_TO_LABEL = json.loads(handle.read())
@@ -91,8 +92,6 @@ class FeaturesLabelsGenerator:
 
 
     def calculate_label(self):
-
-        # ARREGLAR!!!
 
         freq_sampling = str(self._sampling_period_in_months) + 'MS'
         range_dates = pd.date_range(self.ops._df_min_date, self.ops._df_max_date, freq=freq_sampling)

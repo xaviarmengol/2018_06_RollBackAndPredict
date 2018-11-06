@@ -14,9 +14,6 @@ from datetime import datetime, timedelta
 from OpportunitiesWithHistory import OpportunitiesWithHistory
 from FeaturesLabelsGenerator import FeaturesLabelsGenerator
 
-#from S3_Create_Dataset_Script import filter_ops
-
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
 def create_weighs_vector(df_y, percent_value):
@@ -62,16 +59,16 @@ def xgboost_dataset (data_set, ini, end, test, parameters, num_round=1000):
     return f1, bst
 
 
-def xgboost_cv(data_set, param, min_train_periods=6, fixed_train_set=True):
+def xgboost_cv(data_set, param, min_train_periods=6, fixed_train_set=True, months_prediction=6):
 
     f1_cv = []
-    total_cv_periods = len(data_set) - min_train_periods - MONTHS_PREDICTION
+    total_cv_periods = len(data_set) - min_train_periods - months_prediction
 
     for cv_index in range(total_cv_periods):
 
         ini_train = cv_index if fixed_train_set else 0
         end_train = min_train_periods + cv_index
-        test = end_train + MONTHS_PREDICTION  # q meses para no incluir info del test en el train
+        test = end_train + months_prediction  # q meses para no incluir info del test en el train
 
         f1, bst = xgboost_dataset(Xy, ini_train, end_train, test, parameters=param)
         message = "Train from:" + str(ini_train) + "to" + str(end_train - 1) + "CV:", str(test), "F1 :", str(f1)
@@ -82,14 +79,14 @@ def xgboost_cv(data_set, param, min_train_periods=6, fixed_train_set=True):
     return f1_cv
 
 
-def xgboost_grid_search_cv(data_set, parameters_list):
+def xgboost_grid_search_cv(data_set, parameters_list,  months_prediction):
 
     f1_best_parameters = 0
     f1_grid_search = []
 
     for param_i, param in enumerate(parameters_list):
 
-        f1_cv = xgboost_cv(data_set, param)
+        f1_cv = xgboost_cv(data_set, param, fixed_train_set=FIXED_TRAIN_SET, months_prediction=months_prediction)
         f1_cv_avg = sum(f1_cv) / len(f1_cv)
 
         f1_grid_search.append(f1_cv_avg)
@@ -112,7 +109,9 @@ if __name__ == '__main__':
 
     GRID_SEARCH = False
     MONTHS_PREDICTION = 6
-    MIN_TRAIN_PERIODS = 6
+    MIN_TRAIN_MONTHS = 6
+    FIXED_TRAIN_SET = True
+    SAMPLING_MONTHS = 1
 
     best_param_cv = {'colsample_bytree': 0.4,
                      'eta': 0.1,
@@ -147,17 +146,6 @@ if __name__ == '__main__':
         df_ops, df_history, df_op_lines = pickle.load(f)
 
     date_csv = datetime(2018, 6, 28)
-
-    df_op_lines.BU = df_op_lines.BU.fillna('NO')
-    df_BU = df_op_lines.pivot_table(values='Line Amount', index='SE Reference', columns='BU', aggfunc=np.sum, fill_value=0)
-    df_ops = df_ops.merge(df_BU, how='left', left_index=True, right_index=True)
-
-
-    df_op_lines.prod_line = df_op_lines.prod_line.fillna('NOACT')
-    df_plines = df_op_lines.pivot_table(values='Line Amount', index='SE Reference', columns='prod_line', aggfunc=np.sum, fill_value=0)
-    df_ops = df_ops.merge(df_plines, how='left', left_index=True, right_index=True)
-
-
     ops = OpportunitiesWithHistory(df_history, date_csv, df_ops)
 
     def filter_ops(df):
@@ -166,7 +154,8 @@ if __name__ == '__main__':
 
     Xy = FeaturesLabelsGenerator(ops, df_op_lines, timedelta_in_months=MONTHS_PREDICTION,
                                  df_changes_history=df_history,
-                                 function_to_filter_df=filter_ops)
+                                 function_to_filter_df=filter_ops,
+                                 sampling_period_in_months=SAMPLING_MONTHS)
     Xy.calculate_label()
     Xy.calculate_features()
 
@@ -177,4 +166,4 @@ if __name__ == '__main__':
 
     logging.info('Parameter search grid over {} parameter set'.format(len(param_list)))
 
-    f1_grid_list = xgboost_grid_search_cv(Xy, param_list)
+    f1_grid_list = xgboost_grid_search_cv(Xy, param_list, months_prediction=MONTHS_PREDICTION)
